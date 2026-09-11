@@ -46,7 +46,7 @@ jobs:
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean `
-            --onefile --windowed `
+            --onefile --windowed --noupx `
             --name "MP4오디오추출기" `
             --add-binary "src/bin/ffmpeg.exe;." `
             --add-binary "src/bin/ffprobe.exe;." `
