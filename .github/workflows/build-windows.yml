@@ -1,0 +1,61 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "requirements.txt"
+      - ".github/workflows/build-windows.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: 소스 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Python 의존성 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 공식 FFmpeg Windows 빌드 (gyan.dev, ffmpeg.org 공식 다운로드 페이지에 안내된 배포처)
+      # 를 GitHub Releases에서 내려받아 ffmpeg.exe / ffprobe.exe 만 프로그램에 포함시킨다.
+      - name: FFmpeg(Windows 공식 빌드) 다운로드
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/GyanD/codexffmpeg/releases/latest"
+          $asset = $release.assets | Where-Object { $_.name -like "*essentials_build.zip" } | Select-Object -First 1
+          Write-Host "다운로드: $($asset.browser_download_url)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile ffmpeg.zip
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg_extracted
+          $binDir = Get-ChildItem -Path ffmpeg_extracted -Directory | Select-Object -First 1
+          New-Item -ItemType Directory -Path src/bin -Force | Out-Null
+          Copy-Item "$($binDir.FullName)\bin\ffmpeg.exe" src/bin/ffmpeg.exe
+          Copy-Item "$($binDir.FullName)\bin\ffprobe.exe" src/bin/ffprobe.exe
+
+      - name: PyInstaller로 EXE 빌드
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean `
+            --onefile --windowed `
+            --name "MP4오디오추출기" `
+            --add-binary "src/bin/ffmpeg.exe;." `
+            --add-binary "src/bin/ffprobe.exe;." `
+            --paths src `
+            src/main.py
+
+      - name: 결과물 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: MP4오디오추출기-windows
+          path: dist/MP4오디오추출기.exe
+          if-no-files-found: error

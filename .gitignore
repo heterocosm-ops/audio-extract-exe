@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+src/bin/
+testdata/out/
+testdata/*.mp4
+testdata/*.m4a
+.write_test.tmp
